@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+
+    <title>M.S. Cable's Invoice Generator</title>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <script src="https://code.jquery.com/jquery-3.7.0.slim.js" integrity="sha256-7GO+jepT9gJe9LB4XFf8snVOjX3iYNb0FHYr5LI1N5c=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>  -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous" />
+    <link rel="icon" href="logo1.jpg" type="image/jpg">
+
+
+    <!-- <link rel="stylesheet" href="styles.css">
+    <script src="script.js"></script> -->
+    <script>
+        function GetPdf() {
+            window.print();
+            const inputValues = document.getElementsByClassName("input-value");
+            for (let i = 0; i < inputValues.length; i++) {
+                const inputValue = inputValues[i];
+                const inputText = document.createTextNode(inputValue.innerText);
+                inputValue.parentNode.replaceChild(inputText, inputValue);
+            }
+            var editableSpan = document.querySelector(".editable-value");
+            var enteredValue = editableSpan.textContent;
+
+            const invoiceNumber = generateInvoiceNumber();
+            localStorage.setItem("lastInvoiceNumber", invoiceNumber);
+            // Custom styles for PDF generation
+            const pdfStyles = `
+                <style>
+                thead {
+                    background-color: #2980b9;
+                    color: #fff;
+                }
+                </style>
+                `;
+            // Generate PDF and store it in the local storage folder
+
+            const element = document.getElementById("invoice");
+            html2canvas(element).then((canvas) => {
+                const pdf = new jsPDF("p", "mm", "a4");
+                pdf.addImage(canvas, "JPEG", 10, 10, 190, 277); // Adjust the position and size as needed
+                pdf.save(`Invoice_${invoiceNumber}.pdf`);
+            });
+
+
+
+            if (downloadLocation) {
+                pdf.save(downloadLocation);
+
+                // Increment the invoice number
+                incrementInvoiceNumber();
+            }
+        };
+
+
+        function incrementInvoiceNumber() {
+            var lastInvoiceNumber =
+                parseInt(localStorage.getItem("lastInvoiceNumber")) || 0;
+            lastInvoiceNumber++;
+            localStorage.setItem("lastInvoiceNumber", lastInvoiceNumber);
+        }
+
+        function generateInvoiceNumber() {
+            var lastInvoiceNumber =
+                parseInt(localStorage.getItem("lastInvoiceNumber")) || 0;
+            lastInvoiceNumber++;
+            return lastInvoiceNumber;
+        }
+
+        function initializeInvoiceNumber() {
+            var invoiceNumberInput = document.getElementById("invoiceNumber");
+            var lastInvoiceNumber =
+                parseInt(localStorage.getItem("lastInvoiceNumber")) || 0;
+            invoiceNumberInput.value = lastInvoiceNumber;
+        }
+
+        window.onload = initializeInvoiceNumber;
+
+        function btnadd() {
+            var b = $("#Trow").clone().appendTo("#Tbody");
+            $(b).find("input").val("");
+            $(b).removeClass("d-none");
+
+            // Update the serial numbers for all rows
+            $("#Tbody")
+                .find("tr")
+                .each(function(index) {
+                    $(this).find("th").first().text(index);
+                });
+        }
+
+        function btndel(b) {
+            $(b).parent().parent().remove();
+            GetTotal();
+
+            $("#Tbody")
+                .find("tr")
+                .each(function(index) {
+                    $(this).find("th").first().html(index);
+                });
+        }
+
+        function handleItemNameChange(input) {
+            var row = input.parentNode.parentNode;
+            var amtField = row.querySelector("input[name='amt']");
+            var itemName = input.innerText;
+            if (itemName.includes("Installation Charges")) {
+                amtField.disabled = false;
+                Calc(amtField);
+            } else {
+                amtField.disabled = true;
+                amtField.value = 0;
+                GetTotal();
+            }
+        }
+
+        function Calc(input) {
+            var row = input.parentNode.parentNode;
+            var qtyInput = row.querySelector("input[name='qty']");
+            var qtyText = qtyInput.value;
+
+            // Extract the numerical value from the input
+            var qty = parseFloat(qtyText.replace(/[^\d.]/g, ""));
+
+            var rate = row.querySelector("input[name='rate']").value;
+            var amtField = row.querySelector("input[name='amt']");
+            var itemName = row.querySelector(".editable-value").innerText;
+
+            var amt = qty * rate;
+
+            if (itemName.includes("Installation Charges")) {
+                var installationValue = itemName.split("Inst")[1].trim();
+                if (installationValue) {
+                    var installationCharge = parseFloat(installationValue);
+                    amt += installationCharge;
+                    amtField.disabled = false;
+                }
+            }
+
+            amtField.value = amt;
+            GetTotal();
+        }
+
+        function GetTotal() {
+            var sum = 0;
+            var amts = document.getElementsByName("amt");
+            for (let index = 0; index < amts.length; index++) {
+                var amt = amts[index].value;
+                sum = +sum + +amt;
+            }
+            document.getElementById("FTotal").value = sum;
+            var net = sum;
+            /* var net = +sum + +((sum * 18) / 100); */
+
+            document.getElementById("FNet").value = net;
+
+            /* var cgst = (sum * 0.09).toFixed(2);
+             document.getElementById("CGST").value = cgst;
+
+             var sgst = (sum * 0.09).toFixed(2);
+             document.getElementById("SGST").value = sgst; */
+
+            var amountInWords = convertToWords(net);
+            document.getElementById("amountInWords").innerText = amountInWords;
+        }
+
+        function convertToWords(amount) {
+            var words = [
+                "",
+                "One",
+                "Two",
+                "Three",
+                "Four",
+                "Five",
+                "Six",
+                "Seven",
+                "Eight",
+                "Nine",
+                "Ten",
+                "Eleven",
+                "Twelve",
+                "Thirteen",
+                "Fourteen",
+                "Fifteen",
+                "Sixteen",
+                "Seventeen",
+                "Eighteen",
+                "Nineteen",
+            ];
+
+            var tens = [
+                "",
+                "",
+                "Twenty",
+                "Thirty",
+                "Forty",
+                "Fifty",
+                "Sixty",
+                "Seventy",
+                "Eighty",
+                "Ninety",
+            ];
+
+            var inWords = "";
+
+            if (amount === 0) {
+                inWords = "Zero Rupees";
+            } else {
+                var amountString = amount.toFixed(2).toString();
+                var amountArray = amountString.split(".");
+
+                var rupees = parseInt(amountArray[0]);
+                var paise = parseInt(amountArray[1]);
+
+                if (rupees > 0) {
+                    inWords += convert(rupees) + " Rupees";
+                }
+
+                if (paise > 0) {
+                    inWords += " and " + convert(paise) + " Paise";
+                }
+            }
+            inWords += " Only";
+            return inWords;
+
+            function convert(num) {
+                if (num < 20) {
+                    return words[num];
+                }
+
+                if (num < 100) {
+                    return tens[Math.floor(num / 10)] + " " + words[num % 10];
+                }
+
+                if (num < 1000) {
+                    return words[Math.floor(num / 100)] + " Hundred " + convert(num % 100);
+                }
+
+                if (num < 100000) {
+                    return (
+                        convert(Math.floor(num / 1000)) + " Thousand " + convert(num % 1000)
+                    );
+                }
+
+                if (num < 10000000) {
+                    return (
+                        convert(Math.floor(num / 100000)) + " Lakh " + convert(num % 100000)
+                    );
+                }
+
+                return (
+                    convert(Math.floor(num / 10000000)) + " Crore " + convert(num % 10000000)
+                );
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Lugrasimo&display=swap');
+        html {
+            font-size: 14px;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            scroll-padding-top: 6.5rem;
+        }
+        
+        body {
+            font-family: 'Times New Roman', Times, serif;
+        }
+        
+        .pt {
+            width: 70%;
+            background-color: rgb(245, 245, 240);
+        }
+        
+        span {
+            color: #2980b9;
+        }
+        
+        h2 {
+            text-align: center;
+            color: #2980b9;
+        }
+        
+        .thead-primary {
+            background-color: #2980b9;
+            color: #fff;
+        }
+        
+        .container {
+            font-size: medium;
+            max-width: auto;
+        }
+        
+        .table-primary th,
+        .table-primary td {
+            min-width: 70px;
+        }
+        
+        .NoPrint .btn {
+            width: auto;
+        }
+        
+        @media print {
+            .table-primary {
+                background-color: #2980b9;
+                color: #fff;
+            }
+            /* Hide buttons and unnecessary elements for print */
+            .NoPrint {
+                display: none;
+            }
+            .btn {
+                display: none;
+            }
+            .form-control {
+                border: 0px;
+            }
+            .input-group-text {
+                border: 0px;
+                background-color: white;
+            }
+            .pt {
+                width: 70%;
+                background-color: rgb(245, 245, 240);
+            }
+        }
+        
+        @media (min-width: 576px) {
+            html {
+                font-size: 16px;
+            }
+        }
+        
+        body {
+            margin: 10px;
+            margin-top: 10px;
+        }
+        
+        html {
+            font-size: 80%;
+            overflow-x: hidden;
+            scroll-behavior: smooth;
+            scroll-padding-top: 6.5rem;
+        }
+    </style>
+
+</head>
+
+<body>
+    <div class="container" style="font-size: medium; max-width: 100%;" id="invoice">
+
+        <div class="card">
+            <div class="card-header">
+                <h1 style="font-family: 'Lugrasimo', cursive;"><span>M.S.</span> CABLE NETWORK</h1>
+            </div>
+            <div class="card-body">
+                <!-- <h4 class="card-title">GST:27BAUPS3810F1ZE</h4> -->
+                <h4 class="card-title">BANK AC NO. : 60398420537</h4>
+                <h4 class="card-title">IFSC CODE : MAHB0001897</h4>
+                <h4 class="card-title">Email: sayyedmeraj53@gmail.com</h4>
+                <h4 class="card-title">[Mo. No.: 7410592277, 9881070039]</h4>
+
+
+            </div>
+        </div>
+
+
+
+        <div class="card">
+            <div class="card-header">
+                <h2 style="font-family:'Times New Roman', Times, serif">BILL INVOICE</h2>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-8">
+                        <h3>Bill To:</h3>
+                        <div class="input-group mb-3">
+                            <span id="basic-addon1"></span>
+                            <input type="text" class="form-control form-control-lg" placeholder="Customer Name" aria-label="Username" aria-describedby="basic-addon1" required>
+                        </div>
+
+                        <div class="input-group mb-3">
+                            <span id="basic-addon1"> </span>
+                            <input type="text" class="form-control form-control-lg" placeholder="Address" aria-label="Address" aria-describedby="basic-addon1" required>
+                        </div>
+
+                        <!-- <div class="input-group mb-3">
+                            <span class="input-group-text" id="basic-addon1">GST NO.</span>
+                            <input type="text" class="form-control form-control-lg" aria-label="GST Number" aria-describedby="basic-addon1">
+                        </div> -->
+                    </div>
+
+                    <div class="col-4" style="margin-top: 33px;">
+                        <div class="input-group mb-3">
+                            <span class="input-group-text" id="basic-addon1"><strong>Invoice No.</strong></span>
+                            <input type="text" class="form-control form-control-lg" id="invoiceNumber" placeholder="Invoice No." aria-label="Invoice Number" aria-describedby="basic-addon1" required>
+                        </div>
+
+                        <div class="input-group mb-3">
+                            <span class="input-group-text" id="basic-addon1"><strong>Date</strong> </span>
+                            <input type="date" class="form-control form-control-lg" id="gstDate" placeholder="DD/MM/YYYY" required>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead class="table-primary">
+                                <tr class="head">
+                                    <th scope="col">#</th>
+                                    <th scope="col">Item Name</th>
+                                    <th scope="col" class="text-center">HSN/SAC</th>
+                                    <th scope="col" class="text-center">Quantity</th>
+                                    <th scope="col" class="text-center">Unit</th>
+                                    <th scope="col" class="text-center">Price / unit</th>
+                                    <th scope="col" class="text-center">Amount</th>
+                                    <th class="NoPrint"><button type="button" class="btn btn-success" onclick="btnadd()">+</button></th>
+                                </tr>
+                            </thead>
+                            <tbody id="Tbody">
+                                <tr id="Trow" class="d-none">
+                                    <th scope="row">1</th>
+                                    <td><span contentEditable="true" class="editable-value" style="color: black;" oninput="Calc(this)"></span></td>
+
+
+
+                                    <td><input type="text" class="form-control form-control-lg" name=""></td>
+                                    <td><input type="text" class="form-control form-control-lg" name="qty" onchange="Calc(this);"></td>
+                                    <td><input type="number" class="form-control form-control-lg" name=""></td>
+                                    <td><input type="number" class="form-control form-control-lg" name="rate" onchange="Calc(this);"></td>
+                                    <td><input type="number" class="form-control form-control-lg" name="amt" disabled=""></td>
+                                    <td class="NoPrint"><button type="button" class="btn btn-danger" onclick="btndel(this)">X</button></td>
+                                </tr>
+
+                            </tbody>
+                        </table>
+                    </div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-8" style="padding-left:40px">
+                            <h4 style="padding-top: 25px;">Total</h4>
+                            <!-- <h4 style="padding-top: 35px;">CGST Tax 9%</h4>
+                            <h4 style="padding-top: 35px;">SGST Tax 9%</h4> -->
+
+
+                            <hr>
+                            <h4>NET AMOUNT IN WORDS</h4>
+                            <div id="amountInWords" class="pt">
+
+                            </div>
+                        </div>
+
+                        <div class="col-4">
+                            <div class="input-group mb-3" style="padding-top: 15px;">
+                                <span class="input-group-text" id="basic-addon1">Sub-Total:</span>
+                                <input type="number" class="form-control form-control-lg" id="FTotal" name="FTotal" onchange="GetTotal()" style="padding-top: 10px;" disabled="">
+                            </div>
+                            <!-- <div class="input-group mb-3" style="padding-top: 5px;">
+                                <span class="input-group-text" id="basic-addon1">CGST:</span>
+                                <input type="number" class="form-control form-control-lg" id="CGST" name="CGST" style="padding-top: 10px;" disabled>
+                            </div>
+                            <div class="input-group mb-3" style="padding-top: 5px;">
+                                <span class="input-group-text" id="basic-addon1">SGST:</span>
+                                <input type="number" class="form-control form-control-lg" id="SGST" name="SGST" style="padding-top: 10px;" disabled>
+                            </div> -->
+                            <div class="input-group mb-3">
+                                <span class="input-group-text" id="basic-addon1">Net Amount :</span>
+                                <input type="number" class="form-control form-control-lg" id="FNet" name="FNet" disabled="">
+                            </div>
+                        </div>
+
+                    </div>
+                    <div class="row">
+                        <div class="col-8" style="padding-left:40px">
+                            <h4 style="padding-top: 5px;">TERMS AND CONDITIONS</h4>
+                            <p class="pt">Thank you for doing business with us.</p>
+                            <hr>
+                        </div>
+                        <div class="row">
+                            <div class="col-4 text-left" style="margin-top: auto;">
+                                <img src="http://drive.google.com/uc?export=view&id=1asPWAS7l41cJ70hAFqnodN0hAOUMtWty" alt="UPI QR Code" style="max-width: 150px; margin-top: 2px;padding-left:15px;  background-color:transparent ">
+
+                            </div>
+
+                        </div>
+                    </div>
+
+                </div>
+                <div class="NoPrint">
+
+                    <button type="button" class="btn btn-primary btn-lg" id="download" onclick="GetPdf()" style="margin-top: 15px;">Generate PDF</button>
+                </div>
+
+                <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js " integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz " crossorigin="anonymous "></script>
+                <!-- Add these scripts before the closing tag -->
+
+</body>
+
+</html>
